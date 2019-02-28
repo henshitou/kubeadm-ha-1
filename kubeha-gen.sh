@@ -43,7 +43,7 @@ echo """
 cluster-info:
   master-01:        ${CP0_IP}
   master-02:        ${CP1_IP}
-  master-02:        ${CP2_IP}
+  master-03:        ${CP2_IP}
   VIP:              ${VIP}
   Net Interface:    ${NET_IF}
   CIDR:             ${CIDR}
