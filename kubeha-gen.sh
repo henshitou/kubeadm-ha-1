@@ -43,7 +43,7 @@ echo """
 cluster-info:
   master-01:        ${CP0_IP}
   master-02:        ${CP1_IP}
-  master-03:        ${CP2_IP}
+  master-02:        ${CP2_IP}
   VIP:              ${VIP}
   Net Interface:    ${NET_IF}
   CIDR:             ${CIDR}
@@ -186,17 +186,17 @@ localityName                    = Locality Name (eg, city)
 localityName_value              = Lisbon
 
 organizationName                = Organization Name (eg, company)
-organizationName_value          = community
+organizationName_value          = OS
 
 organizationalUnitName          = Organizational Unit Name (eg, section)
 organizationalUnitName_value    = CM
 
 commonName                      = Common Name (eg, your name or your server\'s hostname)
-commonName_value                = Multi-k8s
+commonName_value                = K8S-Cluster
 
 
 emailAddress                    = Email Address
-emailAddress_value              = henshitou@henshitou@outlook.com
+emailAddress_value              = henshitou@outlook.com
 """ > ~/ikube/tls/openssl.cnf
 openssl req -newkey rsa:4096 -nodes -config ~/ikube/tls/openssl.cnf -days 3650 -x509 -out ~/ikube/tls/tls.crt -keyout ~/ikube/tls/tls.key
 kubectl create -n kube-system secret tls ssl --cert ~/ikube/tls/tls.crt --key ~/ikube/tls/tls.key
