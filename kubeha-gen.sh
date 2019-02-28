@@ -122,7 +122,7 @@ ${HEALTH_CHECK}
 """ > ~/ikube/keepalived-${index}.conf
   scp ~/ikube/keepalived-${index}.conf ${ip}:/etc/keepalived/keepalived.conf
 
-  ssh ${ip} "
+  ssh ${host} "
     systemctl stop keepalived
     systemctl enable keepalived
     systemctl start keepalived
@@ -157,7 +157,7 @@ JOIN_CMD=`kubeadm token create --print-join-command`
 
 for index in 1 2; do
   ip=${IPS[${index}]}
-  ssh $ip "mkdir -p /etc/kubernetes/pki/etcd; mkdir -p ~/.kube/"
+  ssh $host "mkdir -p /etc/kubernetes/pki/etcd; mkdir -p ~/.kube/"
   scp /etc/kubernetes/pki/ca.crt $ip:/etc/kubernetes/pki/ca.crt
   scp /etc/kubernetes/pki/ca.key $ip:/etc/kubernetes/pki/ca.key
   scp /etc/kubernetes/pki/sa.key $ip:/etc/kubernetes/pki/sa.key
@@ -169,7 +169,7 @@ for index in 1 2; do
   scp /etc/kubernetes/admin.conf $ip:/etc/kubernetes/admin.conf
   scp /etc/kubernetes/admin.conf $ip:~/.kube/config
 
-  ssh ${ip} "${JOIN_CMD} --experimental-control-plane"
+  ssh ${host} "${JOIN_CMD} --experimental-control-plane"
 done
 
 echo "Cluster create finished."
