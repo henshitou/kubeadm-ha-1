@@ -42,12 +42,16 @@ fi
 echo """
 cluster-info:
   master-01:        ${CP0_IP}
+                    ${CP0_HOSTNAME}
   master-02:        ${CP1_IP}
+                    ${CP1_HOSTNAME}
   master-02:        ${CP2_IP}
+                    ${CP2_HOSTNAME}
   VIP:              ${VIP}
   Net Interface:    ${NET_IF}
   CIDR:             ${CIDR}
 """
+
 echo -n 'Please print "yes" to continue or "no" to cancel: '
 read AGREE
 while [ "${AGREE}" != "yes" ]; do
