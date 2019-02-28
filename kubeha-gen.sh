@@ -57,7 +57,7 @@ cluster-info:
                     ${CP0_HOSTNAME}
   master-02:        ${CP1_IP}
                     ${CP1_HOSTNAME}
-  master-02:        ${CP2_IP}
+  master-03:        ${CP2_IP}
                     ${CP2_HOSTNAME}
   VIP:              ${VIP}
   Net Interface:    ${NET_IF}
