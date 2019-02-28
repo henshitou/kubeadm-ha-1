@@ -18,13 +18,25 @@ check_parm "Enter the IP address of master-01: " ${CP0_IP}
 if [ $? -eq 1 ]; then
 	read CP0_IP
 fi
+check_parm "Enter the Hostname of master-01: " ${CP0_HOSTNAME}
+if [ $? -eq 1 ]; then
+	read CP0_HOSTNAME
+fi
 check_parm "Enter the IP address of master-02: " ${CP1_IP}
 if [ $? -eq 1 ]; then
 	read CP1_IP
 fi
+check_parm "Enter the Hostname of master-02: " ${CP1_HOSTNAME}
+if [ $? -eq 1 ]; then
+	read CP1_HOSTNAME
+fi
 check_parm "Enter the IP address of master-03: " ${CP2_IP}
 if [ $? -eq 1 ]; then
 	read CP2_IP
+fi
+check_parm "Enter the Hostname of master-03: " ${CP2_HOSTNAME}
+if [ $? -eq 1 ]; then
+	read CP2_HOSTNAME
 fi
 check_parm "Enter the VIP: " ${VIP}
 if [ $? -eq 1 ]; then
@@ -42,25 +54,29 @@ fi
 echo """
 cluster-info:
   master-01:        ${CP0_IP}
+                    ${CP0_HOSTNAME}
   master-02:        ${CP1_IP}
+                    ${CP1_HOSTNAME}
   master-02:        ${CP2_IP}
+                    ${CP2_HOSTNAME}
   VIP:              ${VIP}
   Net Interface:    ${NET_IF}
   CIDR:             ${CIDR}
 """
-echo -n 'Please print "yes" to continue or "no" to cancel: '
+echo -n 'Please print "yes" to continue or "no" to cancle: '
 read AGREE
 while [ "${AGREE}" != "yes" ]; do
 	if [ "${AGREE}" == "no" ]; then
 		exit 0;
 	else
-		echo -n 'Please print "yes" to continue or "no" to cancel: '
+		echo -n 'Please print "yes" to continue or "no" to cancle: '
 		read AGREE
 	fi
 done
 
 mkdir -p ~/ikube/tls
 
+HOSTS=(${CP0_HOSTNAME} ${CP1_HOSTNAME} ${CP2_HOSTNAME})
 IPS=(${CP0_IP} ${CP1_IP} ${CP2_IP})
 
 PRIORITY=(100 50 30)
@@ -84,6 +100,7 @@ for index in 0 1 2; do
 done
 
 for index in 0 1 2; do
+  host=${HOSTS[${index}]}
   ip=${IPS[${index}]}
   echo """
 global_defs {
@@ -116,57 +133,110 @@ virtual_server ${VIP} 6443 {
 ${HEALTH_CHECK}
 }
 """ > ~/ikube/keepalived-${index}.conf
-  scp ~/ikube/keepalived-${index}.conf ${ip}:/etc/keepalived/keepalived.conf
+  scp ~/ikube/keepalived-${index}.conf ${host}:/etc/keepalived/keepalived.conf
 
-  ssh ${ip} "
-    systemctl stop keepalived
-    systemctl enable keepalived
-    systemctl start keepalived
+  ssh ${host} "
+    systemctl restart keepalived
     kubeadm reset -f
     rm -rf /etc/kubernetes/pki/"
-done
 
-echo """
-apiVersion: kubeadm.k8s.io/v1beta1
-kind: ClusterConfiguration
-kubernetesVersion: v1.13.0
-controlPlaneEndpoint: "${VIP}:6443"
-apiServer:
-  certSANs:
-  - ${CP0_IP}
-  - ${CP1_IP}
-  - ${CP2_IP}
-  - ${VIP}
+  if [ ${index} -ne 0 ]; then
+    ETCD_MEMBER="${ETCD_MEMBER},"
+    ETCD_STATUS="existing"
+  else
+    ETCD_MEMBER=""
+    ETCD_STATUS="new"
+  fi
+  ETCD_MEMBER="${ETCD_MEMBER}${host}=https://${ip}:2380"
+
+  echo """
+apiVersion: kubeadm.k8s.io/v1alpha2
+kind: MasterConfiguration
+kubernetesVersion: v1.11.0
+apiServerCertSANs:
+- ${CP0_IP}
+- ${CP1_IP}
+- ${CP2_IP}
+- ${CP0_HOSTNAME}
+- ${CP1_HOSTNAME}
+- ${CP2_HOSTNAME}
+- ${VIP}
+kubeProxy:
+  config:
+    mode: ipvs
+etcd:
+  local:
+    extraArgs:
+      listen-client-urls: https://127.0.0.1:2379,https://${ip}:2379
+      advertise-client-urls: https://${ip}:2379
+      listen-peer-urls: https://${ip}:2380
+      initial-advertise-peer-urls: https://${ip}:2380
+      initial-cluster: ${ETCD_MEMBER}
+      initial-cluster-state: ${ETCD_STATUS}
+    serverCertSANs:
+      - ${host}
+      - ${ip}
+    peerCertSANs:
+      - ${host}
+      - ${ip}
 networking:
   # This CIDR is a Calico default. Substitute or remove for your CNI provider.
   podSubnet: ${CIDR}
-""" > /etc/kubernetes/kubeadm-config.yaml
+""" > ~/ikube/kubeadm-config-m${index}.yaml
+
+  scp ~/ikube/kubeadm-config-m${index}.yaml ${host}:/etc/kubernetes/kubeadm-config.yaml
+done
 
 kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
 mkdir -p $HOME/.kube
 cp -f /etc/kubernetes/admin.conf ${HOME}/.kube/config
 
-kubectl apply -f https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.13.0/calico/rbac.yaml
-curl -fsSL https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.13.0/calico/calico.yaml | sed "s!8.8.8.8!${CP0_IP}!g" | sed "s!10.244.0.0/16!${CIDR}!g" | kubectl apply -f -
-
-JOIN_CMD=`kubeadm token create --print-join-command`
+ETCD=`kubectl get pods -n kube-system 2>&1|grep etcd|awk '{print $3}'`
+echo "Waiting for etcd bootup..."
+while [ "${ETCD}" != "Running" ]; do
+  sleep 1
+  ETCD=`kubectl get pods -n kube-system 2>&1|grep etcd|awk '{print $3}'`
+done
 
 for index in 1 2; do
+  host=${HOSTS[${index}]}
   ip=${IPS[${index}]}
-  ssh $ip "mkdir -p /etc/kubernetes/pki/etcd; mkdir -p ~/.kube/"
-  scp /etc/kubernetes/pki/ca.crt $ip:/etc/kubernetes/pki/ca.crt
-  scp /etc/kubernetes/pki/ca.key $ip:/etc/kubernetes/pki/ca.key
-  scp /etc/kubernetes/pki/sa.key $ip:/etc/kubernetes/pki/sa.key
-  scp /etc/kubernetes/pki/sa.pub $ip:/etc/kubernetes/pki/sa.pub
-  scp /etc/kubernetes/pki/front-proxy-ca.crt $ip:/etc/kubernetes/pki/front-proxy-ca.crt
-  scp /etc/kubernetes/pki/front-proxy-ca.key $ip:/etc/kubernetes/pki/front-proxy-ca.key
-  scp /etc/kubernetes/pki/etcd/ca.crt $ip:/etc/kubernetes/pki/etcd/ca.crt
-  scp /etc/kubernetes/pki/etcd/ca.key $ip:/etc/kubernetes/pki/etcd/ca.key
-  scp /etc/kubernetes/admin.conf $ip:/etc/kubernetes/admin.conf
-  scp /etc/kubernetes/admin.conf $ip:~/.kube/config
+  ssh $host "mkdir -p /etc/kubernetes/pki/etcd; mkdir -p ~/.kube/"
+  scp /etc/kubernetes/pki/ca.crt $host:/etc/kubernetes/pki/ca.crt
+  scp /etc/kubernetes/pki/ca.key $host:/etc/kubernetes/pki/ca.key
+  scp /etc/kubernetes/pki/sa.key $host:/etc/kubernetes/pki/sa.key
+  scp /etc/kubernetes/pki/sa.pub $host:/etc/kubernetes/pki/sa.pub
+  scp /etc/kubernetes/pki/front-proxy-ca.crt $host:/etc/kubernetes/pki/front-proxy-ca.crt
+  scp /etc/kubernetes/pki/front-proxy-ca.key $host:/etc/kubernetes/pki/front-proxy-ca.key
+  scp /etc/kubernetes/pki/etcd/ca.crt $host:/etc/kubernetes/pki/etcd/ca.crt
+  scp /etc/kubernetes/pki/etcd/ca.key $host:/etc/kubernetes/pki/etcd/ca.key
+  scp /etc/kubernetes/admin.conf $host:/etc/kubernetes/admin.conf
+  scp /etc/kubernetes/admin.conf $host:~/.kube/config
 
-  ssh ${ip} "${JOIN_CMD} --experimental-control-plane"
+  kubectl exec \
+    -n kube-system etcd-${CP0_HOSTNAME} -- etcdctl \
+    --ca-file /etc/kubernetes/pki/etcd/ca.crt \
+    --cert-file /etc/kubernetes/pki/etcd/peer.crt \
+    --key-file /etc/kubernetes/pki/etcd/peer.key \
+    --endpoints=https://${CP0_IP}:2379 \
+    member add ${host} https://${ip}:2380
+
+  ssh ${host} "
+    kubeadm alpha phase certs all --config /etc/kubernetes/kubeadm-config.yaml
+    kubeadm alpha phase kubeconfig controller-manager --config /etc/kubernetes/kubeadm-config.yaml
+    kubeadm alpha phase kubeconfig scheduler --config /etc/kubernetes/kubeadm-config.yaml
+    kubeadm alpha phase kubelet config write-to-disk --config /etc/kubernetes/kubeadm-config.yaml
+    kubeadm alpha phase kubelet write-env-file --config /etc/kubernetes/kubeadm-config.yaml
+    kubeadm alpha phase kubeconfig kubelet --config /etc/kubernetes/kubeadm-config.yaml
+    systemctl restart kubelet
+    kubeadm alpha phase etcd local --config /etc/kubernetes/kubeadm-config.yaml
+    kubeadm alpha phase kubeconfig all --config /etc/kubernetes/kubeadm-config.yaml
+    kubeadm alpha phase controlplane all --config /etc/kubernetes/kubeadm-config.yaml
+    kubeadm alpha phase mark-master --config /etc/kubernetes/kubeadm-config.yaml"
 done
+
+kubectl apply -f https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.11.0/calico/rbac.yaml
+kubectl apply -f https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.11.0/calico/calico.yaml
 
 echo "Cluster create finished."
 
@@ -192,7 +262,7 @@ organizationalUnitName          = Organizational Unit Name (eg, section)
 organizationalUnitName_value    = CM
 
 commonName                      = Common Name (eg, your name or your server\'s hostname)
-commonName_value                = K8S-Cluster
+commonName_value                = K8S-CLUSTER
 
 
 emailAddress                    = Email Address
@@ -200,12 +270,21 @@ emailAddress_value              = henshitou@outlook.com
 """ > ~/ikube/tls/openssl.cnf
 openssl req -newkey rsa:4096 -nodes -config ~/ikube/tls/openssl.cnf -days 3650 -x509 -out ~/ikube/tls/tls.crt -keyout ~/ikube/tls/tls.key
 kubectl create -n kube-system secret tls ssl --cert ~/ikube/tls/tls.crt --key ~/ikube/tls/tls.key
-kubectl apply -f https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.13.0/plugin/traefik.yaml
-kubectl apply -f https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.13.0/plugin/metrics.yaml
-kubectl apply -f https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.13.0/plugin/kubernetes-dashboard.yaml
+kubectl apply -f https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.11.0/plugin/rbac.yaml
+kubectl apply -f https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.11.0/plugin/traefik.yaml
+kubectl apply -f https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.11.0/plugin/heapster.yaml
+kubectl apply -f https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.11.0/plugin/kubernetes-dashboard.yaml
+
+for index in 0 1 2; do
+  host=${HOSTS[${index}]}
+  ip=${IPS[${index}]}
+  ssh ${host} "sed -i 's/etcd-servers=https:\/\/127.0.0.1:2379/etcd-servers=https:\/\/${CP0_IP}:2379,https:\/\/${CP1_IP}:2379,https:\/\/${CP2_IP}:2379/g' /etc/kubernetes/manifests/kube-apiserver.yaml"
+  ssh ${host} "sed -i 's/${CP0_IP}/${VIP}/g' ~/.kube/config"
+  ssh ${host} "sed -i 's/${ip}/${VIP}/g' /etc/kubernetes/kubelet.conf; systemctl restart kubelet"
+done
 
 echo "Plugin install finished."
-echo "Waiting for all pods into 'Running' status. You can press 'Ctrl + c' to terminate this waiting any time you like."
+echo "Waiting for all pods into 'Running' statu. You can press 'Ctrl + c' to terminate this waiting any time you like."
 POD_UNREADY=`kubectl get pods -n kube-system 2>&1|awk '{print $3}'|grep -vE 'Running|STATUS'`
 NODE_UNREADY=`kubectl get nodes 2>&1|awk '{print $2}'|grep 'NotReady'`
 while [ "${POD_UNREADY}" != "" -o "${NODE_UNREADY}" != "" ]; do
