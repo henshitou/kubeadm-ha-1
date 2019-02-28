@@ -181,26 +181,26 @@ prompt = yes
 
 [ req_distinguished_name ]
 countryName                     = Country Name (2 letter code)
-countryName_value               = CN
+countryName_value               = PT
 
 stateOrProvinceName             = State or Province Name (full name)
-stateOrProvinceName_value       = Beijing
+stateOrProvinceName_value       = Lisbon
 
 localityName                    = Locality Name (eg, city)
-localityName_value              = Haidian
+localityName_value              = Lisbon
 
 organizationName                = Organization Name (eg, company)
-organizationName_value          = Channelsoft
+organizationName_value          = OS
 
 organizationalUnitName          = Organizational Unit Name (eg, section)
-organizationalUnitName_value    = R & D Department
+organizationalUnitName_value    = CM
 
 commonName                      = Common Name (eg, your name or your server\'s hostname)
-commonName_value                = *.multi.io
+commonName_value                = K8S-CLUSTER
 
 
 emailAddress                    = Email Address
-emailAddress_value              = lentil1016@gmail.com
+emailAddress_value              = henshitou@outlook.com
 """ > ~/ikube/tls/openssl.cnf
 openssl req -newkey rsa:4096 -nodes -config ~/ikube/tls/openssl.cnf -days 3650 -x509 -out ~/ikube/tls/tls.crt -keyout ~/ikube/tls/tls.key
 kubectl create -n kube-system secret tls ssl --cert ~/ikube/tls/tls.crt --key ~/ikube/tls/tls.key
