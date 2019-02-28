@@ -146,8 +146,8 @@ kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
 mkdir -p $HOME/.kube
 cp -f /etc/kubernetes/admin.conf ${HOME}/.kube/config
 
-kubectl apply -f https://raw.githubusercontent.com/Lentil1016/kubeadm-ha/1.13.0/calico/rbac.yaml
-curl -fsSL https://raw.githubusercontent.com/Lentil1016/kubeadm-ha/1.13.0/calico/calico.yaml | sed "s!8.8.8.8!${CP0_IP}!g" | sed "s!10.244.0.0/16!${CIDR}!g" | kubectl apply -f -
+kubectl apply -f https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.13.0/calico/rbac.yaml
+curl -fsSL https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.13.0/calico/calico.yaml | sed "s!8.8.8.8!${CP0_IP}!g" | sed "s!10.244.0.0/16!${CIDR}!g" | kubectl apply -f -
 
 JOIN_CMD=`kubeadm token create --print-join-command`
 
@@ -177,32 +177,32 @@ prompt = yes
 
 [ req_distinguished_name ]
 countryName                     = Country Name (2 letter code)
-countryName_value               = CN
+countryName_value               = PT
 
 stateOrProvinceName             = State or Province Name (full name)
-stateOrProvinceName_value       = Beijing
+stateOrProvinceName_value       = Lisbon
 
 localityName                    = Locality Name (eg, city)
-localityName_value              = Haidian
+localityName_value              = Lisbon
 
 organizationName                = Organization Name (eg, company)
-organizationName_value          = Channelsoft
+organizationName_value          = community
 
 organizationalUnitName          = Organizational Unit Name (eg, section)
-organizationalUnitName_value    = R & D Department
+organizationalUnitName_value    = CM
 
 commonName                      = Common Name (eg, your name or your server\'s hostname)
-commonName_value                = *.multi.io
+commonName_value                = Multi-k8s
 
 
 emailAddress                    = Email Address
-emailAddress_value              = lentil1016@gmail.com
+emailAddress_value              = henshitou@henshitou@outlook.com
 """ > ~/ikube/tls/openssl.cnf
 openssl req -newkey rsa:4096 -nodes -config ~/ikube/tls/openssl.cnf -days 3650 -x509 -out ~/ikube/tls/tls.crt -keyout ~/ikube/tls/tls.key
 kubectl create -n kube-system secret tls ssl --cert ~/ikube/tls/tls.crt --key ~/ikube/tls/tls.key
-kubectl apply -f https://raw.githubusercontent.com/Lentil1016/kubeadm-ha/1.13.0/plugin/traefik.yaml
-kubectl apply -f https://raw.githubusercontent.com/Lentil1016/kubeadm-ha/1.13.0/plugin/metrics.yaml
-kubectl apply -f https://raw.githubusercontent.com/Lentil1016/kubeadm-ha/1.13.0/plugin/kubernetes-dashboard.yaml
+kubectl apply -f https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.13.0/plugin/traefik.yaml
+kubectl apply -f https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.13.0/plugin/metrics.yaml
+kubectl apply -f https://raw.githubusercontent.com/henshitou/kubeadm-ha/1.13.0/plugin/kubernetes-dashboard.yaml
 
 echo "Plugin install finished."
 echo "Waiting for all pods into 'Running' status. You can press 'Ctrl + c' to terminate this waiting any time you like."
