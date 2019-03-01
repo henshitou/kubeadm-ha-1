@@ -109,7 +109,7 @@ vrrp_instance VI_1 {
     }
 }
 
-virtual_server ${VIP} 6443 {
+virtual_server ${VIP} 443 {
     delay_loop 6
     lb_algo loadbalance
     lb_kind DR
