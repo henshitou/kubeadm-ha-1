@@ -18,13 +18,25 @@ check_parm "Enter the IP address of master-01: " ${CP0_IP}
 if [ $? -eq 1 ]; then
 	read CP0_IP
 fi
+check_parm "Enter the Hostname of master-01: " ${CP0_HOSTNAME}
+if [ $? -eq 1 ]; then
+	read CP0_HOSTNAME
+fi
 check_parm "Enter the IP address of master-02: " ${CP1_IP}
 if [ $? -eq 1 ]; then
 	read CP1_IP
 fi
+check_parm "Enter the Hostname of master-02: " ${CP1_HOSTNAME}
+if [ $? -eq 1 ]; then
+	read CP1_HOSTNAME
+fi
 check_parm "Enter the IP address of master-03: " ${CP2_IP}
 if [ $? -eq 1 ]; then
 	read CP2_IP
+fi
+check_parm "Enter the Hostname of master-03: " ${CP2_HOSTNAME}
+if [ $? -eq 1 ]; then
+	read CP2_HOSTNAME
 fi
 check_parm "Enter the VIP: " ${VIP}
 if [ $? -eq 1 ]; then
@@ -65,6 +77,7 @@ done
 
 mkdir -p ~/ikube/tls
 
+HOSTS=(${CP0_HOSTNAME} ${CP1_HOSTNAME} ${CP2_HOSTNAME})
 IPS=(${CP0_IP} ${CP1_IP} ${CP2_IP})
 
 PRIORITY=(100 50 30)
