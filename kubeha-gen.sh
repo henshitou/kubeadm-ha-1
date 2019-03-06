@@ -151,7 +151,8 @@ mkdir -p $HOME/.kube
 cp -f /etc/kubernetes/admin.conf ${HOME}/.kube/config
 
 kubectl apply -f /icds/dev/kubeadm-ha/ha-othersolution/kubeadm-ha-1/manl-yaml/1.13.0/calico/rbac.yaml
-curl -fsSL /icds/dev/kubeadm-ha/ha-othersolution/kubeadm-ha-1/manl-yaml/1.13.0/calico/calico.yaml | sed "s!8.8.8.8!${CP0_IP}!g" | sed "s!10.244.0.0/16!${CIDR}!g" | kubectl apply -f -
+#curl -fsSL /icds/dev/kubeadm-ha/ha-othersolution/kubeadm-ha-1/manl-yaml/1.13.0/calico/calico.yaml | sed "s!8.8.8.8!${CP0_IP}!g" | sed "s!10.244.0.0/16!${CIDR}!g" | kubectl apply -f -
+kubectl apply -f /icds/dev/kubeadm-ha/ha-othersolution/kubeadm-ha-1/manl-yaml/1.13.0/calico/calico.yaml
 
 JOIN_CMD=`kubeadm token create --print-join-command`
 
