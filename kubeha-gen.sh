@@ -105,7 +105,7 @@ vrrp_instance VI_1 {
     }
 }
 
-virtual_server ${VIP} 443 {
+virtual_server ${VIP} 6443 {
     delay_loop 6
     lb_algo loadbalance
     lb_kind DR
@@ -130,7 +130,7 @@ echo """
 apiVersion: kubeadm.k8s.io/v1beta1
 kind: ClusterConfiguration
 kubernetesVersion: v1.13.0
-controlPlaneEndpoint: "${VIP}:443"
+controlPlaneEndpoint: "${VIP}:6443"
 apiServer:
   certSANs:
   - ${CP0_IP}
