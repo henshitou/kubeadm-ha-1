@@ -135,7 +135,7 @@ ${HEALTH_CHECK}
 """ > ~/ikube/keepalived-${index}.conf
   scp ~/ikube/keepalived-${index}.conf ${host}:/etc/keepalived/keepalived.conf
 
-  ssh ${HOST} "
+  ssh ${host} "
     systemctl stop keepalived
     systemctl enable keepalived
     systemctl start keepalived
