@@ -129,7 +129,7 @@ done
 echo """
 apiVersion: kubeadm.k8s.io/v1beta1
 kind: ClusterConfiguration
-kubernetesVersion: v1.13.0
+kubernetesVersion: v1.13.2
 controlPlaneEndpoint: "${VIP}:6443"
 apiServer:
   certSANs:
